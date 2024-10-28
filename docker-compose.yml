@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:4.4
+    container_name: mongodb_migration
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    command: mongod --bind_ip_all
+    networks:
+      migration_network:
+        ipv4_address: 172.30.10.203
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo_express
+    restart: unless-stopped
+    ports:
+      - "8083:8081"  # Cambiado a 8083
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: pass123
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+    networks:
+      - migration_network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+networks:
+  migration_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.10.0/24
+
+volumes:
+  mongodb_data:
+    name: mongodb_migration_data
